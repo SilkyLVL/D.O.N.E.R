@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>BioTrap OS - Web Kontrol</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen">
+  <header class="border-b border-slate-800 bg-slate-900/80 px-6 py-3.5 flex items-center justify-between">
+    <div class="flex items-center space-x-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-cyan-500 flex items-center justify-center font-bold text-slate-950">
+        <i class="fa-solid fa-shield-cat text-xl"></i>
+      </div>
+      <div>
+        <h1 class="text-lg font-bold">BioTrap Command OS</h1>
+        <p class="text-xs text-slate-400">{{ config.kafes_id }} • {{ config.lokasyon_adi }}</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <div id="statusBadge" class="px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
+        <span id="statusText">SİSTEM NÖBETTE</span>
+      </div>
+      <div class="px-3 py-1.5 rounded-xl bg-slate-800 text-xs font-mono text-cyan-400" id="fpsBadge">-- FPS</div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- SOL: EKRAN ALANI -->
+    <section class="lg:col-span-2 space-y-4">
+      <div class="relative bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
+        <!-- Canlı Kamera Yayını -->
+        <img id="liveFeedImg" src="/video_feed" class="w-full aspect-video object-cover bg-black">
+
+        <!-- Yüklenen Fotoğraf Test Sonucu Ekranı (Varsayılan Gizli) -->
+        <div id="uploadResultBox" class="hidden relative w-full aspect-video bg-black flex items-center justify-center">
+          <img id="uploadResultImg" class="max-w-full max-h-full object-contain">
+          <div class="absolute top-4 left-4 bg-slate-900/80 border border-slate-700 backdrop-blur-md px-3 py-1.5 rounded-xl text-xs flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
+            <span id="uploadResultLabel" class="font-bold">Test Analiz Sonucu</span>
+          </div>
+          <button onclick="backToLiveFeed()" class="absolute top-4 right-4 bg-emerald-500/90 hover:bg-emerald-500 text-slate-950 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-lg">
+            <i class="fa-solid fa-video"></i> Canlı Yayına Dön
+          </button>
+        </div>
+
+        <!-- Tuzak Kilitlendi Uyarısı -->
+        <div id="trapAlertOverlay" class="hidden absolute inset-0 bg-red-950/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
+          <div class="w-16 h-16 rounded-full bg-red-500/20 border-2 border-red-500 flex items-center justify-center mb-2">
+            <i class="fa-solid fa-lock text-red-400 text-2xl"></i>
+          </div>
+          <h2 class="text-2xl font-black text-white">KAFES KAPATILDI!</h2>
+          <p id="trapAlertDetails" class="text-sm text-red-200 mt-1 mb-4"></p>
+          <button onclick="resetTrap()" class="bg-white text-slate-950 font-bold px-6 py-2 rounded-xl text-sm hover:bg-slate-200">
+            Tuzağı Hemen Sıfırla
+          </button>
+        </div>
+      </div>
+
+      <!-- Aksiyon Butonları -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <!-- Gizli Dosya Girişi -->
+        <input type="file" id="imageFileInput" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
+
+        <button onclick="document.getElementById('imageFileInput').click()" class="bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 font-bold py-3 rounded-xl text-sm flex items-center justify-center gap-2">
+          <i class="fa-solid fa-upload"></i> 📁 Fotoğraf Test Et
+        </button>
+        <button onclick="manualTrigger()" class="bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 font-bold py-3 rounded-xl text-sm flex items-center justify-center gap-2">
+          <i class="fa-solid fa-hand"></i> Manuel Kafesi Kapat
+        </button>
+        <button onclick="resetTrap()" class="bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-bold py-3 rounded-xl text-sm flex items-center justify-center gap-2">
+          <i class="fa-solid fa-rotate-left"></i> Tuzağı Sıfırla
+        </button>
+      </div>
+    </section>
+
+    <!-- SAĞ: KONTROL PANELİ -->
+    <section class="space-y-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+        <h3 class="text-xs font-bold text-slate-400 uppercase">🎯 HEDEF SEÇİMİ</h3>
+        <select id="targetSelect" onchange="updateSettings()" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white">
+          <option value="ALL">🌟 Tümü (Herhangi Biri)</option>
+          <option value="Sican">🐀 Sıçan (Kemirgen)</option>
+          <option value="kirmizi yanakli kaplumbaga">🐢 Kırmızı Yanaklı Kaplumbağa</option>
+          <option value="papa-an-dataset">🦜 Yeşil Papağan</option>
+        </select>
+
+        <div>
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-slate-300">Hassasiyet Eşiği</span>
+            <span id="confDisplay" class="font-bold text-emerald-400">%60</span>
+          </div>
+          <input type="range" id="confSlider" min="30" max="95" value="60" oninput="document.getElementById('confDisplay').innerText='%'+this.value" onchange="updateSettings()" class="w-full accent-emerald-500">
+        </div>
+
+        <div>
+          <label class="block text-xs text-slate-300 mb-1">Rapor Alıcı E-Posta</label>
+          <div class="flex gap-2">
+            <input type="email" id="emailInput" value="{{ state.recipient_email }}" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white">
+            <button onclick="updateSettings()" class="bg-slate-800 border border-slate-700 text-xs px-3 rounded-xl font-bold">Kaydet</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 12 SAATLİK ZAMANLAYICI KARTI -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xs font-bold text-slate-400 uppercase"><i class="fa-solid fa-stopwatch text-amber-400"></i> Otomatik Tahliye</h3>
+          <input type="checkbox" id="autoReleaseToggle" checked onchange="updateSettings()" class="w-4 h-4 accent-amber-500">
+        </div>
+        <div>
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-slate-300">Bekleme Süresi</span>
+            <span id="releaseDelayDisplay" class="font-bold text-amber-400">1 saat</span>
+          </div>
+          <!-- 1 ile 720 dakika (12 Saat) Slider -->
+          <input type="range" id="releaseSlider" min="1" max="720" step="5" value="60" oninput="updateTimeText(this.value)" onchange="updateSettings()" class="w-full accent-amber-500">
+        </div>
+        <div id="countdownBox" class="hidden p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-center">
+          <div class="text-[11px] text-amber-300">⏳ Canlı Tahliye Sayacı:</div>
+          <div id="countdownTimer" class="text-2xl font-mono font-black text-amber-400">01:00:00</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    function updateTimeText(mins) {
+      mins = parseInt(mins);
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      let text = "";
+      if (h > 0 && m > 0) text = `${h} saat ${m} dk`;
+      else if (h > 0) text = `${h} saat`;
+      else text = `${m} dakika`;
+      document.getElementById('releaseDelayDisplay').innerText = text;
+    }
+
+    async function updateSettings() {
+      const mins = parseInt(document.getElementById('releaseSlider').value);
+      await fetch('/api/update_settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          target: document.getElementById('targetSelect').value,
+          confidence: document.getElementById('confSlider').value,
+          email: document.getElementById('emailInput').value,
+          auto_release: document.getElementById('autoReleaseToggle').checked,
+          release_delay: mins * 60
+        })
+      });
+    }
+
+    // ================= YENİ: FOTOĞRAF YÜKLEME VE ANALİZ =================
+    async function handleImageUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Durum bildir
+      document.getElementById('statusText').innerText = "GÖRSEL ANALİZ EDİLİYOR...";
+
+      try {
+        const response = await fetch('/api/upload_test', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await response.json();
+
+        if (data.success) {
+          // Canlı yayını gizle, analiz görselini göster
+          document.getElementById('liveFeedImg').classList.add('hidden');
+          document.getElementById('uploadResultBox').classList.remove('hidden');
+
+          document.getElementById('uploadResultImg').src = data.image_url + "?t=" + new Date().getTime();
+
+          if (data.detected) {
+            document.getElementById('uploadResultLabel').innerText = `🎯 TESPİT: ${data.species} (%${data.score})`;
+            document.getElementById('uploadResultLabel').className = "font-bold text-red-400";
+          } else {
+            document.getElementById('uploadResultLabel').innerText = `✓ Temiz: Hedef bulunamadı`;
+            document.getElementById('uploadResultLabel').className = "font-bold text-cyan-400";
+          }
+        } else {
+          alert("Hata: " + data.message);
+        }
+      } catch (err) {
+        console.error("Yükleme hatası:", err);
+        alert("Görsel yüklenirken bir hata oluştu!");
+      }
+
+      // Dosya inputunu temizle (aynı dosya tekrar seçilebilsin)
+      event.target.value = '';
+    }
+
+    function backToLiveFeed() {
+      document.getElementById('uploadResultBox').classList.add('hidden');
+      document.getElementById('liveFeedImg').classList.remove('hidden');
+    }
+
+    async function manualTrigger() { await fetch('/api/manual_trigger', { method: 'POST' }); }
+    async function resetTrap() {
+      await fetch('/api/reset_trap', { method: 'POST' });
+      backToLiveFeed();
+    }
+
+    setInterval(async () => {
+      try {
+        const res = await fetch('/api/telemetry');
+        const data = await res.json();
+        document.getElementById('fpsBadge').innerText = data.fps + " FPS";
+
+        const overlay = document.getElementById('trapAlertOverlay');
+        const statusBadge = document.getElementById('statusBadge');
+        const statusText = document.getElementById('statusText');
+
+        if (data.trap_closed) {
+          overlay.classList.remove('hidden');
+          document.getElementById('trapAlertDetails').innerText = `${data.last_detection || 'Tetiklendi'}. Tahliye bekleniyor.`;
+          statusBadge.className = "px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold";
+          statusText.innerText = "KAFES KAPALI";
+        } else {
+          overlay.classList.add('hidden');
+          statusBadge.className = "px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold";
+          statusText.innerText = "SİSTEM NÖBETTE";
+        }
+
+        if (data.trap_closed && data.release_time_left > 0) {
+          document.getElementById('countdownBox').classList.remove('hidden');
+          const totalSec = data.release_time_left;
+          const h = Math.floor(totalSec / 3600);
+          const m = Math.floor((totalSec % 3600) / 60);
+          const s = totalSec % 60;
+          const fmt = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+          document.getElementById('countdownTimer').innerText = fmt;
+        } else {
+          document.getElementById('countdownBox').classList.add('hidden');
+        }
+      } catch (err) {}
+    }, 1000);
+  </script>
+</body>
+</html>

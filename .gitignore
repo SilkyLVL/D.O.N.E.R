@@ -1,5 +1,16 @@
+# Sensitive credentials
+.env
+
+# Raw Dataset (Too big for GitHub)
+dataset/
+
+# Python Virtual Environment
 .venv/
 venv/
 __pycache__/
+*.pyc
+
+# Local captures & training runs
+static/captures/
 yakalama_*.jpg
 runs/
